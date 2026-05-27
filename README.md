@@ -1,129 +1,477 @@
-# react-usetask-z
+# ⚛️ react-usetask-z
 
-[![NPM](https://img.shields.io/npm/v/react-usetask-z.svg)](https://www.npmjs.com/package/react-usetask-z)
-[![JavaScript Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://standardjs.com)
-![Downloads](https://img.shields.io/npm/dt/react-usetask-z.svg)
+![NPM Version](https://img.shields.io/npm/v/react-usetask-z.svg) ![Downloads](https://img.shields.io/npm/dt/react-usetask-z.svg) ![Bundle Size](https://img.shields.io/bundlephobia/minzip/react-usetask-z.svg)
 
-A lightweight **React custom hook** for creating flexible tasks/timers.
+[LIVE EXAMPLE](https://codesandbox.io/p/sandbox/82l6rm)
 
-🔹 Supports sequential or fixed interval tasks
-🔹 Repeat tasks a fixed number of times or infinitely
-🔹 Cancel, reset, and auto-restart tasks
-🔹 Works with async or sync functions
+🚀 Structured concurrency runtime for React with task orchestration, cancellation trees, retries, polling, async scopes, and AbortController propagation.
+
+> Kotlin-style coroutine runtime for React applications.
 
 ---
 
-## 🚀 Live Demo
+# What is react-usetask-z?
 
-👉 [Codesandbox Example](https://codesandbox.io/p/sandbox/nl3s57)
+`react-usetask-z` is a lightweight async runtime layer for React applications.
+
+Instead of manually handling:
+
+- `setTimeout`
+- `setInterval`
+- `AbortController`
+- retry loops
+- polling
+- cleanup
+- async race conditions
+
+the runtime provides a structured task system inspired by:
+
+- Kotlin Coroutines
+- Structured Concurrency
+- Async runtimes
+- React concurrent rendering
 
 ---
 
-## 📦 Installation
+# Why react-usetask-z?
+
+Managing async logic in React becomes difficult as applications scale.
+
+Common problems:
+
+- Memory leaks from unfinished async work
+- Stale requests updating state
+- Manual AbortController management
+- Nested async callbacks
+- Retry boilerplate everywhere
+- Polling cleanup issues
+- Race conditions between requests
+- Parent-child async orchestration becoming messy
+
+`react-usetask-z` solves this using task-based async orchestration.
+
+---
+
+# Features
+
+- ⚡ Structured concurrency
+- 🌲 Cancellation tree propagation
+- 🛑 AbortController integration
+- 🔁 Retry policies
+- ⏱ Timeout support
+- 🔄 Polling / interval tasks
+- 🧩 Parent-child tasks
+- 🚀 Task scopes
+- ⚛️ React hooks integration
+- 🧠 Async orchestration helpers
+- 📦 Lightweight runtime
+- ✅ Full TypeScript support
+
+---
+
+# Mental Model
+
+```text
+React Component
+      ↓
+    useTask
+      ↓
+   Task Runtime
+      ↓
+ Parent Task
+   ├── Child Task
+   ├── Retry Logic
+   ├── Timeout
+   └── Abort Propagation
+```
+
+---
+
+# Installation
 
 ```bash
 npm install react-usetask-z
-# or
-yarn add react-usetask-z
-```
-
-Import in your project:
-
-```ts
-import useTask from "react-usetask-z";
 ```
 
 ---
 
-## 🛠 Usage
+# Quick Start
 
-### Initialize a task
+## Basic Task
 
-```ts
-const { execute, executeAsync, cancel, reset } = useTask({
-  fn: async () => {
-    console.log("⚡ Task executed!");
+```tsx
+import { useTask } from 'react-usetask-z'
+
+export function App() {
+  const userTask = useTask(
+    async ({ signal }) => {
+      const response = await fetch(
+        'https://jsonplaceholder.typicode.com/todos/1',
+        {
+          signal,
+        },
+      )
+
+      return response.json()
+    },
+    {
+      immediate: true,
+    },
+  )
+
+  if (userTask.isRunning) {
+    return <p>Loading...</p>
+  }
+
+  return (
+    <div>
+      <pre>
+        {JSON.stringify(
+          userTask.data,
+          null,
+          2,
+        )}
+      </pre>
+
+      <button
+        onClick={() => userTask.run()}
+      >
+        Reload
+      </button>
+    </div>
+  )
+}
+```
+
+---
+
+# Timeout
+
+```tsx
+const task = useTask(fetchUsers, {
+  timeout: 5000,
+})
+```
+
+Automatically aborts task after timeout.
+
+---
+
+# Retry Policies
+
+## Simple Retry
+
+```tsx
+const task = useTask(fetchUsers, {
+  retry: 3,
+})
+```
+
+---
+
+## Advanced Retry
+
+```tsx
+const task = useTask(fetchUsers, {
+  retry: {
+    maxAttempts: 5,
+    delay: 1000,
+    backoff: 'exponential',
+    jitter: true,
   },
-  delay: 1000, // Initial delay in ms
-  repeat: 5, // Repeat 5 times, true = infinite
-  interval: 500, // Interval between repeats in ms
-  mode: "sequential", // sequential | fixed
-  retry: 2, // retry 2 times on error
-  retryDelay: 1000, // 1s between retries
-});
-```
-
-### Run task immediately
-
-```ts
-execute();
-```
-
-### Run async task with await
-
-```ts
-await executeAsync(async () => {
-  const response = await fetch("/api/data");
-  const data = await response.json();
-  console.log("✅ API completed", data);
-});
-```
-
-### Run after custom delay
-
-```ts
-execute(() => console.log("⏱ Run after 2 seconds"), 2000);
-```
-
-### Stop or reset tasks
-
-```ts
-cancel(); // 🛑 Stop current task
-reset(); // 🔄 Reset repeat count and stop
-```
-
-### Sequential vs Fixed mode
-
-- ⏱ `sequential`: waits for previous async task to complete before next iteration
-- ⚡ `fixed`: runs tasks on a fixed interval regardless of previous task completion
-
-```ts
-useTask({ mode: "fixed", interval: 1000 });
-```
-
-### Auto-restart
-
-```ts
-useTask({
-  fn: () => console.log("🔄 Restart task"),
-  repeat: 3,
-  restartDelay: 2000, // restart 2 seconds after completion
-});
+})
 ```
 
 ---
 
-## ⚙️ API
+# Polling
 
-| Function                                               | Description                            |
-| ------------------------------------------------------ | -------------------------------------- |
-| `execute(fn?, delay?, repeat?, interval?, mode?)`      | ⚡ Run task (sync / normal callback)   |
-| `executeAsync(fn?, delay?, repeat?, interval?, mode?)` | ✅ Run task async with promise support |
-| `cancel()`                                             | 🛑 Stop current task immediately       |
-| `reset()`                                              | 🔄 Stop and reset repeat count         |
+```tsx
+const task = useTask(fetchUsers, {
+  interval: 3000,
+})
+```
 
----
-
-## ✨ Notes
-
-- 🔁 If `repeat` is set to `true`, the task will loop infinitely until `cancel()` is called
-- ⚡ Use `executeAsync` if your task returns a promise and you want sequential execution
-- ✅ `restartDelay` allows tasks to automatically restart after finishing all repeats
-- 🔄 Retry mechanism available with `retry` and `retryDelay`
-- 🛠 Error handling via `onError` callback
+Automatically reruns task every 3 seconds.
 
 ---
 
-## 📋 License
+# Delays
+
+```tsx
+const task = useTask(
+  async ({ delay }) => {
+    await delay(1000)
+
+    console.log('done')
+  },
+)
+```
+
+---
+
+# Child Tasks
+
+```tsx
+const task = useTask(
+  async ({ fork }) => {
+    const user = await fork(
+      async ({ signal }) => {
+        const response =
+          await fetch('/user', {
+            signal,
+          })
+
+        return response.json()
+      },
+    )
+
+    const posts = await fork(
+      async ({ signal }) => {
+        const response =
+          await fetch('/posts', {
+            signal,
+          })
+
+        return response.json()
+      },
+    )
+
+    return {
+      user,
+      posts,
+    }
+  },
+)
+```
+
+If parent task is cancelled:
+- all child tasks abort automatically
+- all fetches stop
+- retries stop
+- timers clean up
+
+---
+
+# Parallel Tasks
+
+```tsx
+const task = useTask(
+  async ({ all }) => {
+    const results = await all([
+      () => fetchUsers(),
+      () => fetchPosts(),
+    ])
+
+    return results
+  },
+)
+```
+
+---
+
+# Race Tasks
+
+```tsx
+const task = useTask(
+  async ({ race }) => {
+    return race([
+      () => fetchMirrorA(),
+      () => fetchMirrorB(),
+    ])
+  },
+)
+```
+
+---
+
+# Task Scope
+
+```tsx
+import {
+  useTaskScope,
+} from 'react-usetask-z'
+
+export function App() {
+  const scope = useTaskScope()
+
+  async function load() {
+    await scope.launch(
+      async ({ signal }) => {
+        const response =
+          await fetch('/api/users', {
+            signal,
+          })
+
+        return response.json()
+      },
+    )
+  }
+
+  return (
+    <button onClick={load}>
+      Load Users
+    </button>
+  )
+}
+```
+
+---
+
+# useTaskEffect
+
+Async effect with automatic cleanup.
+
+```tsx
+import {
+  useTaskEffect,
+} from 'react-usetask-z'
+
+useTaskEffect(
+  async ({ signal }) => {
+    const response = await fetch(
+      '/api/users',
+      {
+        signal,
+      },
+    )
+
+    console.log(
+      await response.json(),
+    )
+  },
+  [],
+)
+```
+
+---
+
+# API
+
+| API | Purpose |
+|---|---|
+| `useTask()` | Create reactive async task |
+| `useTaskEffect()` | Async effect with cleanup |
+| `useTaskScope()` | Create structured task scope |
+| `run()` | Execute task |
+| `cancel()` | Abort task tree |
+| `restart()` | Cancel and rerun |
+| `reset()` | Reset task state |
+
+---
+
+# Task Lifecycle
+
+```text
+idle
+ ↓
+running
+ ↓
+success
+error
+cancelled
+```
+
+---
+
+# Cancellation Tree
+
+```text
+Root Task
+ ├── Fetch User
+ ├── Fetch Posts
+ │    ├── Fetch Comments
+ │    └── Fetch Reactions
+ └── Upload Avatar
+```
+
+Cancelling root task automatically aborts all descendants.
+
+---
+
+# Retry Backoff Modes
+
+```ts
+backoff:
+  | 'fixed'
+  | 'linear'
+  | 'exponential'
+```
+
+---
+
+# Philosophy
+
+```text
+You control:
+- Business logic
+- Async orchestration
+- Task composition
+- Runtime flow
+
+react-usetask-z controls:
+- Cancellation
+- Abort propagation
+- Cleanup
+- Retry lifecycle
+- Async orchestration
+```
+
+---
+
+# Principles
+
+- Structured concurrency first
+- Abort everything safely
+- Parent owns child lifecycle
+- Cleanup by default
+- Async composition over callbacks
+- Tiny runtime surface
+- Full TypeScript inference
+
+---
+
+# Comparison
+
+| Feature | react-usetask-z | React Query | SWR | RxJS |
+|---|---|---|---|---|
+| Structured concurrency | ✅ | ❌ | ❌ | ⚠️ |
+| Abort propagation | ✅ | ⚠️ | ⚠️ | ⚠️ |
+| Parent-child tasks | ✅ | ❌ | ❌ | ⚠️ |
+| Retry policies | ✅ | ✅ | ✅ | ⚠️ |
+| Polling | ✅ | ✅ | ✅ | ⚠️ |
+| Task scopes | ✅ | ❌ | ❌ | ❌ |
+| Cancellation tree | ✅ | ❌ | ❌ | ❌ |
+| Async orchestration | ✅ | ⚠️ | ❌ | ✅ |
+| React-first API | ✅ | ✅ | ✅ | ❌ |
+| Lightweight runtime | ✅ | ❌ | ✅ | ❌ |
+
+---
+
+# When to Use
+
+## Great Fit
+
+- Complex async workflows
+- Polling systems
+- File uploads
+- Realtime apps
+- Dashboards
+- Async orchestration
+- Enterprise frontends
+- Abort-heavy systems
+
+---
+
+## Probably Overkill
+
+- Static websites
+- Tiny apps
+- Very simple fetch-only apps
+- One-off API calls
+
+---
+
+# License
 
 MIT
